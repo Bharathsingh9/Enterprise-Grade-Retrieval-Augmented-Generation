@@ -52,9 +52,8 @@ graph TD
 ├── evals/               # RAGAS evaluation suite + Streamlit 3-tab demo
 ├── ui/                  # Streamlit chat interface with reasoning step transparency
 ├── processed_data/      # Auto-generated — parsed & chunked JSON output per document
-├── DOCS/                # Architectural and operational guides
+├── docs/                # Architectural and operational guides (11 docs)
 ├── DATA/                # Sample datasets (True vs Noisy documentation)
-├── Dockerfile           # Container definition (retained for reference)
 └── requirements.txt     # Pinned dependencies
 ```
 
@@ -91,32 +90,34 @@ pip install -r requirements.txt
 Create a `.env` file with the following keys:
 
 ```env
-# LLMs
-GROQ_API_KEY = "..."
-GROQ_FALLBACK_API_KEY = "..."       # second Groq key, or same as primary
+# Groq Reasoning Engine (Llama 3.3)
+GROQ_API_KEY = ""
+GROQ_FALLBACK_API_KEY = ""          # second Groq key, or same as primary
 
-# LLM Gateway
-PORTKEY_API_KEY = "..."
+# Portkey LLM Gateway
+PORTKEY_API_KEY = ""
 
-# Gemini Embeddings
-GEMINI_API_KEY = "..."
+# Qdrant Vector DB
+QDRANT_API_KEY = ""
+QDRANT_CLUSTER_ENDPOINT = ""        # e.g. https://your-cluster.cloud.qdrant.io:6333
 
-# Vector DB
-QDRANT_API_KEY = "..."
-QDRANT_CLUSTER_ENDPOINT = "https://your-cluster.cloud.qdrant.io:6333"
+# Pydantic Logfire Observability
+LOGFIRE_TOKEN = ""
 
-# Observability
-LOGFIRE_TOKEN = "..."
-LANGSMITH_API_KEY = "..."
-LANGSMITH_PROJECT = "enterprise_rag"
+# LangSmith
 LANGSMITH_TRACING = true
 LANGSMITH_ENDPOINT = https://api.smith.langchain.com
+LANGSMITH_API_KEY = ""
+LANGSMITH_PROJECT = ""
 
-# Evals
-JUDGE_GROQ = "..."
+# Streamlit UI → FastAPI
+BACKEND_URL = ""                    # e.g. http://localhost:8000
 
-# Backend (for Streamlit UI)
-BACKEND_URL = "http://localhost:8000"
+# Eval judge LLM (keep separate from main key to avoid rate-limiting the live app)
+JUDGE_GROQ = ""
+
+# Gemini Embeddings
+GEMINI_API_KEY = ""
 ```
 
 ### 3. Run data ingestion
