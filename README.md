@@ -6,7 +6,7 @@ A production-grade, enterprise-level RAG system built with **LangGraph**, **Port
 
 - **Agentic Intelligence**: LangGraph for cyclic reasoning, multi-step planning, and conversation memory.
 - **Guardrails**: NeMo Guardrails gate blocks off-topic, jailbreak, and injection inputs before any retrieval.
-- **LLM Gateway**: Portkey routes all LLM calls with automatic fallback between primary and backup Groq keys.
+- **LLM Gateway**: Portkey routes LLM calls with automatic fallback between Portkey Gateway and direct Groq LLM API.
 - **Enterprise Search**: Qdrant Cloud for high-performance vector search + FlashRank for local semantic reranking.
 - **Gemini Embeddings**: Google `gemini-embedding-2-preview` (3072-dim) via `langchain-google-genai`.
 - **Local Document Parsing**: PDF, HTML, TXT, DOCX, PPTX parsed entirely on-device — no external OCR service.

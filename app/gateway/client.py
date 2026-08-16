@@ -1,6 +1,8 @@
 import logfire
 from portkey_ai import Portkey, createHeaders, PORTKEY_GATEWAY_URL
 from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
+import groq
 
 from app.config import settings
 
@@ -22,38 +24,78 @@ GATEWAY_CONFIG = {
     ]
 }
 
-portkey_client = Portkey(
-    api_key=settings.PORTKEY_API_KEY,
-    config=GATEWAY_CONFIG
+_raw_portkey_client = Portkey(
+    api_key=settings.PORTKEY_API_KEY or "dummy_key"
 )
 
 
-def get_langchain_llm(feature: str = "rag") -> ChatOpenAI:
+class FallbackChatLLM:
     """
-    Returns a Portkey-backed ChatOpenAI — a drop-in for ChatGroq in LangChain nodes.
-
-    Why ChatOpenAI and not ChatGroq:
-      Portkey is a proxy. It exposes an OpenAI-compatible endpoint at PORTKEY_GATEWAY_URL.
-      ChatGroq is hardwired to Groq's API and does not support routing through a proxy.
-      ChatOpenAI supports base_url (points at Portkey) and default_headers (passes Portkey
-      auth + config). The @rag/model-name format is Portkey-specific — Groq's own client
-      does not understand it. You are still using Groq models; Portkey is just in the middle.
+    Wraps LangChain LLM: tries Portkey ChatOpenAI first, falls back to direct ChatGroq.
     """
-    return ChatOpenAI(
-        api_key=settings.PORTKEY_API_KEY,
-        base_url=PORTKEY_GATEWAY_URL,
-        model=f"@{settings.GROQ_SLUG}/llama-3.3-70b-versatile",
-        temperature=0,
-        default_headers=createHeaders(
-            api_key=settings.PORTKEY_API_KEY,
-            config=GATEWAY_CONFIG,
-            metadata={
-                "feature": feature,
-                "_user": "rag-system",
-                "environment": "production"
-            }
+    def __init__(self, feature: str = "rag"):
+        self.feature = feature
+        self.portkey_llm = ChatOpenAI(
+            api_key=settings.PORTKEY_API_KEY or "dummy_key",
+            base_url=PORTKEY_GATEWAY_URL,
+            model=f"@{settings.GROQ_SLUG}/llama-3.3-70b-versatile",
+            temperature=0,
+            default_headers=createHeaders(
+                api_key=settings.PORTKEY_API_KEY or "dummy_key",
+                metadata={
+                    "feature": feature,
+                    "_user": "rag-system",
+                    "environment": "production"
+                }
+            )
         )
-    )
+        self.groq_llm = ChatGroq(
+            api_key=settings.GROQ_API_KEY,
+            model=settings.GROQ_MODEL,
+            temperature=0
+        )
+
+    def invoke(self, input_data, config=None, **kwargs):
+        try:
+            return self.portkey_llm.invoke(input_data, config=config, **kwargs)
+        except Exception as e:
+            logfire.warning("⚠️ Portkey Gateway call failed ({error}). Falling back to direct Groq LLM.", error=str(e))
+            return self.groq_llm.invoke(input_data, config=config, **kwargs)
+
+
+class FallbackCompletions:
+    def __init__(self, raw_portkey):
+        self.raw_portkey = raw_portkey
+        self.groq_client = groq.Groq(api_key=settings.GROQ_API_KEY)
+
+    def create(self, **kwargs):
+        try:
+            return self.raw_portkey.chat.completions.create(**kwargs)
+        except Exception as e:
+            logfire.warning("⚠️ Portkey client failed ({error}). Falling back to direct Groq client.", error=str(e))
+            model = kwargs.get("model", settings.GROQ_MODEL)
+            if not model or model.startswith("@"):
+                model = settings.GROQ_MODEL
+            kwargs["model"] = model
+            return self.groq_client.chat.completions.create(**kwargs)
+
+
+class FallbackChat:
+    def __init__(self, raw_portkey):
+        self.completions = FallbackCompletions(raw_portkey)
+
+
+class FallbackPortkeyClient:
+    def __init__(self, raw_portkey):
+        self.chat = FallbackChat(raw_portkey)
+
+
+portkey_client = FallbackPortkeyClient(_raw_portkey_client)
+
+
+def get_langchain_llm(feature: str = "rag"):
+    return FallbackChatLLM(feature=feature)
+
 
 def extract_cache_status(response) -> str:
     """

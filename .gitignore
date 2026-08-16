@@ -26,12 +26,14 @@ wheels/
 
 # Environment variables
 .env
+.env.*
+!.env.example
+.streamlit/secrets.toml
 
-# Local Vector Store
+# Local Vector Store & Processed Data
 index.faiss
 metadata.pkl
-
-# Data
+processed_data/
 
 
 # IDEs
